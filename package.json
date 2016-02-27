@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "generate": "browserify snabbdom_requires_to_single_file.js -o snabbdom_single.js"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "browserify": "*",
+    "snabbdom": "*"
+  }
+}
