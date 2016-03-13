@@ -1,193 +1,210 @@
 function PROGRAM(patch, h) {
     'use strict';
-
-
-
-    var COUNTER_MAX = 10 ;
-
-    var model = {
-    		counter: COUNTER_MAX,
-    		started: false,
-    	    launched: false,
-    	    aborted: false} ;
-
-    model.present = function(data) {
-    	if (state.counting(model)) {
-    		if (model.counter === 0) {
-    			model.launched = data.launched || false ;
-    		} else {
-    			model.aborted = data.aborted || false ;
-    			if (data.counter !== undefined) { model.counter = data.counter ; }
-    		}
-    	} else {
-    		if (state.ready(model)) {
-    			model.started = data.started || false ;
-    		}
-    	}
-    	state.render(model) ;
-    }
-
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // View
+    
+    // auxiliary constants
+    var COUNTER_MAX = 10;
+    var VIEW_ROOT = document.getElementById('representation');
+    
+    // will be set up by a closure which will privately hold the model
+    var modelPresent; 
+    
+    
+    
+    // VIEW
     //
-    var view = {} ;
-
-    // Initial State
-    view.init = function(model) {
-    	return view.ready(model);
+    // each view is a pure function of the model
+    // views can trigger actions via user-generated events (ie: a click)
+    
+    // each view should return the relevant structure for the view render abstraction you're using. snabbdom is used here
+    var view = {
+        init: function(model) { // by convention, at bootstrap this view will be used
+            return view.ready(model);
+        },
+        ready: function(model) {
+            return h('div', [
+                'Counter: ',
+                model.counter,
+                h('br'),
+                h('button', {on:{click:function() { action.start(); }}}, 'Start')
+            ]);
+        },
+        counting: function(model) {
+            return h('div', [
+                'Count down: ',
+                model.counter,
+                h('br'),
+                h('button', {on:{click:function() { action.abort(); }}}, 'Abort')
+            ]);
+        },
+        aborted: function(model) {
+            return h('div', [
+                'Aborted at Counter: ',
+                model.counter
+            ]);
+        },
+        launched: function(model) {
+            return h('div', 'Launched');
+        }
+    };
+    
+    // root DOM element where views will live
+    var oldRepr = VIEW_ROOT;
+    
+    // viewDisplay implementation is determined by how you want to render views. I'm using snabbdom here
+    function viewDisplay(repr) {
+        oldRepr = patch(oldRepr, repr);
     }
-
-    // State representation of the ready state
-    view.ready = function(model) {
-        return h('div', [
-            'Counter: ',
-            model.counter,
-            h('br'),
-            h('button', {on:{click:function(){ return actions.start({}) }}}, 'Start')
-        ]);
-    }
-
-    // State representation of the counting state
-    view.counting = function(model) {
-        return h('div', [
-            'Count down: ',
-            model.counter,
-            h('br'),
-            h('button', {on:{click:function(){ return actions.abort({}) }}}, 'Abort')
-        ]);
-    }
-
-    // State representation of the aborted state
-    view.aborted = function(model) {
-        return h('div', ['Aborted at Counter: ', model.counter]);
-    }
-
-    // State representation of the launched state
-    view.launched = function(model) {
-        return h('div', 'Launched');
-    }
-
-    //display the state representation
-    var oldRepresentation = document.getElementById('representation');
-    view.display = function(representation) {
-        oldRepresentation = patch(oldRepresentation, representation);
-    }
-
-    // Display initial state
-    view.display(view.init(model)) ;
-
-
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // State
+    
+    
+    
+    // ACTION
     //
-    var state =  { view: view} ;
+    // actions are invoked by either user-generated events or fired by the app on state creteria being reached
+    // actions can be parameterized (see decrement).
+    // action can be asynchronous (see decrement).
+    // an action can be silently ignored if validation criteria fails
+    // if action isn't invalid, should invoke modelPresent, passing on the intent object
+    
+    var action = {
+        start: function() {
+            modelPresent({started:true});
+        },
+        decrement: function(data) {
+            setTimeout(function() {
+                --data.counter;
+                modelPresent(data);
+            }, 1000);
+        },
+        launch: function() {
+            modelPresent({launched:true});
+        },
+        abort: function() {
+            modelPresent({aborted:true});
+        }
+    };
+    
+    
+    
+    // STATE
+    // provides predicates to allow model to reason with (as in state machine states)
+    // should, via stateRender:
+    // * elect how to render a view from the model (stateRepresentation)
+    // * fire any auto-invoked action, if model criteria requires so (stateNextAction)
+    
+    // relevant predicates based on the model
+    var state = {
+        ready: function(model) {
+            return (
+                (model.counter === COUNTER_MAX) &&
+                !model.started &&
+                !model.launched &&
+                !model.aborted
+            );
+        },
+        counting: function(model) {
+            return (
+                (model.counter <= COUNTER_MAX) &&
+                (model.counter >= 0) &&
+                model.started &&
+                !model.launched &&
+                !model.aborted
+            );
+        },
+        launched: function(model) {
+            return (
+                (model.counter == 0) &&
+                model.started &&
+                model.launched &&
+                !model.aborted
+            );
+        },
+        aborted: function(model) {
+            return (
+                (model.counter <= COUNTER_MAX) &&
+                (model.counter >= 0) &&
+                model.started &&
+                !model.launched &&
+                model.aborted
+            );
+        }
+    };
+    
+    function stateRender(model) {
+        // 1) how to represent the model as a view
+        var repr;
 
-    model.state = state ;
+        if (state.ready(model)) {
+            repr = view.ready(model);
+        }
+        else if (state.counting(model)) {
+            repr = view.counting(model);
+        }
+        else if (state.launched(model)) {
+            repr = view.launched(model);
+        }
+        else if (state.aborted(model)) {
+            repr = view.aborted(model);
+        }
+        else {
+            repr = 'oops... something went wrong, the system is in an invalid state';
+        }
 
-    // Derive the state representation as a function of the systen
-    // control state
-    state.representation = function(model) {
-    	var representation = 'oops... something went wrong, the system is in an invalid state' ;
-
-    	if (state.ready(model)) {
-    		representation = state.view.ready(model) ;
-    	}
-
-    	if (state.counting(model)) {
-    		representation = state.view.counting(model) ;
-    	}
-
-    	if (state.launched(model)) {
-    		representation = state.view.launched(model) ;
-    	}
-
-    	if (state.aborted(model)) {
-    		representation = state.view.aborted(model) ;
-    	}
-
-    	state.view.display(representation) ;
+        viewDisplay(repr);
+        
+        
+        // 2) which actions to automatically trigger, based on the model (if any...)
+        if (state.counting(model)) {
+            if (model.counter === 0) {
+                action.launch();
+            }
+            else if (model.counter > 0) {
+                action.decrement({counter:model.counter});
+            }
+        }
     }
-
-    // Derive the current state of the system
-    state.ready = function(model) {
-    	return ((model.counter === COUNTER_MAX) && !model.started && !model.launched && !model.aborted) ;
-    }
-
-    state.counting = function(model) {
-    	var status = ((model.counter <= COUNTER_MAX) && (model.counter >= 0) && model.started && !model.launched && !model.aborted) ;
-    	return status ;
-    }
-
-    state.launched = function(model) {
-    	return ((model.counter == 0) && model.started && model.launched && !model.aborted) ;
-    }
-
-    state.aborted = function(model) {
-    	return (
-    		(  model.counter <= COUNTER_MAX) && (model.counter >= 0)
-    		&& model.started && !model.launched && model.aborted ) ;
-    }
-
-
-    // Next action predicate, derives whether
-    // the system is in a (control) state where
-    // an action needs to be invoked
-
-    state.nextAction = function (model) {
-    	if (state.counting(model)) {
-    		if (model.counter>0) {
-    			actions.decrement({counter: model.counter},model.present) ;
-    		}
-
-    		if (model.counter === 0) {
-    			actions.launch({},model.present) ;
-    		}
-    	}
-    }
-
-    state.render = function(model) {
-    	state.representation(model)
-    	state.nextAction(model) ;
-    }
-
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // Actions
+    
+    
+    
+    // MODEL
     //
-
-    var actions = {} ;
-
-    actions.start = function(data, present) {
-    	present = present || model.present ;
-    	data.started = true ;
-    	present(data) ;
-    	return false ;
-    }
-
-    actions.decrement = function(data, present) {
-    	present = present || model.present ;
-    	data = data || {} ;
-    	data.counter = data.counter || 10 ;
-    	var d = data ;
-    	var p = present ;
-    	setTimeout(function() {
-    		d.counter = d.counter - 1 ;
-    		p(d) ;
-    	}, 1000) ;
-    }
-
-    actions.launch = function(data, present) {
-    	present = present || model.present ;
-    	data.launched = true ;
-    	present(data) ;
-    }
-
-    actions.abort = function(data, present) {
-    	present = present || model.present ;
-    	data.aborted = true ;
-    	present(data) ;
-    	return false ;
-    }
+    // the object shouldn't be affacted directly (so hoistered on an IIFE)
+    // exposes modelPresent fn, receiving the data resulting from calling an action.
+    // the fn can ignore the data if its integrity is compromised.
+    // otherwise, fn will pass model to stateRender function (which should just READ it)
+    (function() {        
+        var model = {
+            counter  : COUNTER_MAX,
+            started  : false,
+            launched : false,
+            aborted  : false
+        };
+        
+        modelPresent = function(data) {
+            // process action intent data into model changes, if valid
+            // all model CHANGES should occurr only here
+            if (state.counting(model)) {
+                if (model.counter === 0) {
+                    model.launched = !!data.launched;
+                }
+                else {
+                    model.aborted = !!data.aborted;
+                    if ('counter' in data && !isNaN(data.counter)) {
+                        model.counter = data.counter;
+                    }
+                }
+            }
+            else {
+                if (state.ready(model)) {
+                    model.started = !!data.started;
+                }
+            }
+            
+            // elect how to represent the model to the view and trigger any auto-invoked actions
+            stateRender(model);
+        };
+    
+        // display initial state
+        viewDisplay(view.init(model));
+    })();
+    
 }
