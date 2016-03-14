@@ -1,9 +1,10 @@
 {
   "scripts": {
-    "generate": "browserify snabbdom_requires_to_single_file.js -o snabbdom_single.js"
+    "bundle": "browserify -d app.js -o bundle.js",
+    "postinstall": "npm run bundle"
   },
   "license": "ISC",
-  "devDependencies": {
+  "dependencies": {
     "browserify": "*",
     "snabbdom": "*"
   }

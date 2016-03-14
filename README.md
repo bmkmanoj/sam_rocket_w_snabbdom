@@ -41,20 +41,8 @@ is a pure function of the model (stateRender) which should:
 
 
 
-## What are these other JS files?
+## Files
 
-The relevant code is in `PROGRAM.js`.  
-In there I implement the [rocket launcher example](https://bitbucket.org/snippets/jdubray/9dgKp/sam-sample).  
-It receives the 2 snabbdom's function I need, `h` and `patch`.  
-If you don't know snabbdom, [this article](https://medium.com/@yelouafi/react-less-virtual-dom-with-snabbdom-functions-everywhere-53b672cb2fe3)
-is a nice intro to it (first examples should suffice).
-
-`snabbdom_single.js` was generated via [browserify](http://browserify.org/)
-in order for me (and you) to be able to use snabbdom on the browser without any tooling.  
-It creates a distributable [snabbdom](https://github.com/paldepind/snabbdom) file,
-exposing its symbols h and patch to a `PROGRAM` function, defined elsewhere (in the `PROGRAM.js` file).
-
-If by any chance you want to update the `snabbdom_single.js` file, do:
-
-    npm install
-    npm run generate
+The app is defined in `app.js`.  
+The implementation of SAM is defined in `sam.js`.  
+Browserify is being used in this branch to compile the app into `bundle.js`.
