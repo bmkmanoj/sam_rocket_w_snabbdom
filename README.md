@@ -7,24 +7,26 @@ using [snabbdom](https://github.com/paldepind/snabbdom).
 ## Diagram summary:
 
     State > Action > Model
-    
+
     model -render-> state
-    
+
     state -pureFn-> view
-    
+
     state -nextAction-> action (can be auto-invoked)
       OR
     view  -userAction-> action
-    
+
     action -present-> model
 
-  
+
 ## Concepts definition:
-      
+
+![SAM diagram](SAM.png)
+
 a VIEW as pure function of the model
 
 each ACTION is a pure function, receiving optional parameters.  
-valid actions should invole modelPresent with an object defining the change intended to be applied to the model
+valid actions should invoke modelPresent with an object defining the change intended to be applied to the model
 
 the MODEL contains all application state and should not be tampered with directly.  
 it exposes a single function, modelPresent, receiving the action intent.  
@@ -47,7 +49,7 @@ It receives the 2 snabbdom's function I need, `h` and `patch`.
 If you don't know snabbdom, [this article](https://medium.com/@yelouafi/react-less-virtual-dom-with-snabbdom-functions-everywhere-53b672cb2fe3)
 is a nice intro to it (first examples should suffice).
 
-`snabbdom_single.js` was generated via [browserify](http://browserify.org/) 
+`snabbdom_single.js` was generated via [browserify](http://browserify.org/)
 in order for me (and you) to be able to use snabbdom on the browser without any tooling.  
 It creates a distributable [snabbdom](https://github.com/paldepind/snabbdom) file,
 exposing its symbols h and patch to a `PROGRAM` function, defined elsewhere (in the `PROGRAM.js` file).
